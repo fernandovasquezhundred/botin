@@ -2,41 +2,40 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/yanzay/tbot"
 )
 import bolt "go.etcd.io/bbolt"
 
-func Find(fname string, from, to int, needle []byte) (bool, error) {
-	f, err := os.Open(fname)
+func Find(filename string, from, to int) (string, error) {
+	f, err := os.Open(filename)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 	defer f.Close()
 	n := 0
 	scanner := bufio.NewScanner(f)
+
+	text := ""
 	for scanner.Scan() {
 		n++
-		if n < from {
-			continue
+		if n >= from {
+			text = text + scanner.Text()
 		}
 		if n > to {
 			break
 		}
-		if bytes.Index(scanner.Bytes(), needle) >= 0 {
-			return true, nil
-		}
 	}
-	return false, scanner.Err()
+	return text, scanner.Err()
 }
 
 func main() {
-	bot := tbot.New("872512071:AAGqTVYoot2MJphPFtfGixmC2oo9UM9MEak")
+	bot := tbot.New(os.Getenv("TELEGRAM_TOKEN"))
 	c := bot.Client()
 
 	bot.HandleMessage(".*yo.*", func(m *tbot.Message) {
@@ -49,18 +48,22 @@ func main() {
 		c.SendMessage(m.Chat.ID, "init")
 		db, err := bolt.Open("C:/tmp/bolt.db", 0666, nil)
 		if err != nil {
-			fmt.Sprintf(err.Error())
+			fmt.Printf(err.Error())
 		}
 		defer db.Close()
 
 		db.View(func(tx *bolt.Tx) error {
 
 			b := tx.Bucket([]byte("books"))
-			v := b.Get([]byte("book1"))
-			fmt.Printf("The answer is: %s\n", v)
+			line := b.Get([]byte("book1"))
 
-			found, err := Find("C:\tmp\EgoIstheEnemybyRyanHoliday.txt", 18, 27, []byte("Hello World"))
-			c.SendMessage(found, "init")
+			linex, err := strconv.Atoi(string(line))
+			fmt.Printf("The answer is: %s\n", line)
+
+			found, err := Find("C:/zxc/learn/self/ego.txt",
+				linex,
+				linex + 2)
+			c.SendMessage(m.Chat.ID, found)
 			fmt.Println(found, err)
 			return nil
 		})
